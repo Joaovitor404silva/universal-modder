@@ -19,7 +19,7 @@ You are the offline worker on a game-modding project. A supervisor gives you tas
   - a mature mod of the same kind for another game.
   Cite evidence as file and line. Say what is fact and what is your inference.
 - **Design.** Compare the realistic options, reject with a reason, and recommend one. Prefer the design that reuses a mechanism already proven in this project. State what the design cannot do.
-- **Build.** Write generators and patches, not hand-edited outputs, so the result can be rebuilt after a game update. Do not copy game data into the repo; derive it from the user's install at build time.
+- **Build.** Write generators and patches, not hand-edited outputs, so the result can be rebuilt after a game update. Do not copy game data or decompiled code into the repo; derive data from the user's install at build time, and keep decompiles outside the repo.
 - **Check offline.** Validate generated data (unique IDs, no clash with stock, fields correct, counts). Run the mod's logic against a stub of the game API, covering the failure and release paths as well as the normal one. Keep one script that runs every stub test on the current module.
 - **Hand over.** Every batch ends with the exact live probes the game worker should run: what to call, where to stand, what reading to expect before and after, and what would mean failure.
 

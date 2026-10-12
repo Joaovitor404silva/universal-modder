@@ -135,8 +135,11 @@ A few notes from the community:
   </tbody>
 </table>
 
-**Agents** (`agents/`, Claude Code subagent format): a three-agent team for long mods. Other agents can read
-the files as role briefs.
+**Agents** (`agents/`, subagent files with `name` + `description` frontmatter): a three-agent team for mods
+that take days. Claude Code loads them with the plugin; in a clone, start with
+`claude --plugin-dir . --agent mod-orchestrator`. Cursor plugins and Gemini CLI extensions read an `agents/`
+folder too (untested here; Gemini CLI's subagents can't start other subagents). Three agents use several
+times the tokens of one, so keep it for long mods. Any agent can read the files as role briefs.
 
 <table>
   <thead><tr><th width="200">Agent</th><th>What it does</th></tr></thead>
