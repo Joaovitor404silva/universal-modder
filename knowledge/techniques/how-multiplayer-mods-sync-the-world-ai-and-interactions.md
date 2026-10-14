@@ -17,10 +17,11 @@ tags: [multiplayer, netcode, co-op, state-sync, lockstep, rollback, client-side-
 
 # How multiplayer mods sync the world, AI and interactions
 
-> A cross-game survey of the routes multiplayer mods take to keep player worlds, NPC/AI and
-> interactions in sync. Compiled from public netcode references and four shipped multiplayer mods, and
-> matched against the on-repo co-op work (AC4/AC Rogue). This is a method map, not a built-and-verified
-> mod: what was actually run in a game is in the `Seen in` notes, not here.
+> A cross-game survey of the routes multiplayer mods take to keep player worlds, NPC/AI and interactions in
+> sync. Compiled from public netcode references and the code and design docs of four public multiplayer mods,
+> and matched against the co-op mods in this knowledge base (TUNIC, Dishonored, AC4 Black Flag). This is a
+> method map, not a built-and-verified mod: what was actually run in a game is in the `Seen in` notes, not
+> here.
 
 ## When to use it
 
@@ -33,14 +34,21 @@ Pick a game route only after deciding these, because the model dictates the simu
 
 - **Can the game be made bit-deterministic?** If yes → deterministic lockstep is cheap and small. If no
   (most engines; and always true for a mod you cannot rewrite) → state transfer.
-- **What is authoritative?** For a mod, almost always the host / a server you run.
+- **What is authoritative?** For a mod, the host (or a server you run) owns the shared world, and each player
+  usually owns their own character (see the co-op default below).
 - **What has to cross the wire?** Inputs (lockstep), or state (client-server), or both (hybrid).
+
+The rules from `skills/mod-any-game/references/safety.md` still hold. In a co-op mod, each player runs their own
+copy and the mod's traffic goes over its own transport (direct UDP, a VPN, a relay you run). It never goes
+through the game's official online services, and it never touches a client protected by anti-cheat. PvP mods
+are for servers the user runs.
 
 ## How
 
 ### The two fundamental models
 
-A game is a pure function `(state, inputs) -> new_state`. Two ways to share it (Mikola Lysenko's framing):
+A game is a pure function `(state, inputs) -> new_state`. Two ways to share it (Mikola Lysenko's framing in
+[Replication in networked games](https://0fps.net/2014/02/10/replication-in-networked-games-overview-part-1/)):
 
 | | Determinism / lockstep | State transfer / client-server |
 |---|---|---|
@@ -48,7 +56,7 @@ A game is a pure function `(state, inputs) -> new_state`. Two ways to share it (
 | Runs the sim | every peer, whole world | server, then broadcasts |
 | Needs determinism | yes (bit-exact) | no |
 | Bandwidth | tiny (inputs) | grows with world/entities (mitigated by deltas) |
-| Cheat resistance | high (bad input = desync) | high if server-authoritative |
+| Cheat resistance | tampered state desyncs, but every peer holds the whole world (map hacks) | high if server-authoritative |
 | Cost | none (or a cheap relay) | server CPU + bandwidth |
 | Fits | RTS, turn-based, 4–8 player | FPS, co-op, MMO, large worlds |
 | Variants | delay-based; **rollback (GGPO)** | snapshot interpolation; **state-sync** (hybrid) |
@@ -59,9 +67,15 @@ A game is a pure function `(state, inputs) -> new_state`. Two ways to share it (
 - **State-sync (hybrid)** = run the sim on both sides, exchange inputs *and* state, let state correct drift.
   No perfect determinism needed; highest implementation effort.
 
-For a **mod**, the practical default is state transfer: the host owns the world and the AI, clients send
-validated input requests, the host broadcasts deltas, clients interpolate remote entities and predict +
-reconcile the local player.
+For a **co-op mod**, the practical default is **distributed authority** on top of state transfer. Each player
+owns and simulates their own character with the game's own code, sends its state, and shows the other players
+as puppets with snapshot interpolation. The host owns the shared world (flags, pickups, doors) and arbitrates
+claims on it, and either owns the AI or hands each enemy to the player fighting it. Glenn Fiedler's
+[network-model guide](https://mas-bandwidth.com/choosing-the-right-network-model-for-your-multiplayer-game/)
+names this as the model to consider when converting an existing single-player game, and the co-op mods under
+`Seen in` all work this way. Full server authority with client prediction and reconciliation needs the host to
+simulate every player's movement from their inputs, which a mod can rarely make the game do. Keep it for games
+that already ship a server simulation (tModLoader, a server you run).
 
 ### Topologies
 
@@ -115,6 +129,10 @@ decisions and replicates resulting state; clients render it. If the AI is determ
 same code they can predict and correct only on disagreement — small deltas left alone, medium interpolated
 back, large snapped.
 
+In co-op between friends, trust matters less than latency and the game's own AI assumptions. TUNIC's co-op
+mod gives each enemy to the nearest player (handoff with about 4 m of hysteresis): the unmodified AI then
+chases its local player, and the owner streams its state to the others.
+
 ### Interaction sync
 
 1. Client detects an interaction → sends a **request** (event object / RPC).
@@ -129,12 +147,17 @@ explicitly.
 
 - **Tiered bands** (KCD2-MP): FAST ~20 Hz transforms/velocity/anim (unreliable, latest-wins); SLOW ~2 Hz
   vitals/equipment; RARE on-change appearance/role + join snapshot (reliable).
-- **Periodic bulk + validated action + dirty flag** (FS25 NPCFavor): bulk NPC state every ~5 s and on
-  join, client→server interaction events validated server-side, dirty flag triggers the next broadcast.
+- **Periodic complete snapshot + validated action** (FS25 NPCFavor): `NPCStateSyncEvent` sends the whole NPC
+  roster every 5 s, on state changes and on join, in pages of at most 50 records with a sequence number, so an
+  older snapshot never replaces a newer one. Client→server interaction events are validated server-side.
 - **Change-only serialization** (King Arthur's Gold Sync): objects implement serialize/deserialize; the
   framework syncs an object only when its bytes change, 16-bit id overhead, auto-assigns free ids.
 - **Server owns NPCs + extra-AI payload** (Terraria/tModLoader): `npc.netUpdate` syncs the NPC; extra AI
   fields ride along; projectiles are owner-authoritative; player data is diffed against a snapshot.
+- **Own avatar + puppets + owner-arbitrated claims** (the co-op mods under `Seen in`): each player sends their
+  own character's state (Dishonored: 30 Hz snapshots, 100 ms interpolation) or actions (AC4Coop replicates
+  actions so the puppet animates itself). Shared pickups are credited once through a claim the owner arbitrates
+  (TUNIC: first claim wins).
 
 ### Choosing a model
 
@@ -144,7 +167,7 @@ explicitly.
 | Fighting, twitch 1v1 | GGPO rollback |
 | FPS / co-op / open world / MMO | client-server + prediction/interpolation/lag-comp |
 | Turn-based / board | every-frame or global timestamp (latency irrelevant) |
-| Casual co-op mod, no dedicated server | host-authoritative state transfer |
+| Casual co-op mod, no dedicated server | distributed authority: each player owns their character, the host owns the world, AI owned by the host or per enemy |
 
 ## Gotchas
 
@@ -162,8 +185,8 @@ explicitly.
    (head-of-line blocking). **Fix:** UDP with a partial-reliability layer (ack bitfield, re-send only what
    matters); keep TCP for login/matchmaking/chat.
 5. **A late joiner sees an empty or wrong world. Cause:** no explicit full-state path; only steady-state
-   deltas exist. **Fix:** a dedicated bulk-snapshot-on-join path (FS25 `TYPE_BULK`, KAG full serialize),
-   and test it — this is the thing that "works most of the time but not always".
+   deltas exist. **Fix:** a dedicated bulk-snapshot-on-join path (NPCFavor's paged `NPCStateSyncEvent`, KAG
+   full serialize), and test it — this is the thing that "works most of the time but not always".
 6. **NPCs disagree between players / teleport. Cause:** AI was client-authoritative or non-deterministic
    while clients also simulated it. **Fix:** make the host own the AI and replicate its state, or make the
    AI fully deterministic with synced inputs; only correct clients when the host disagrees.
@@ -186,13 +209,20 @@ explicitly.
 
 ## Seen in
 
-On-repo co-op work (the reasons this method matters):
+Co-op mods in this knowledge base, and the sync choices they made:
 
-- [A visible, driven second character in AC4 single-player (co-op ghost avatar)](../games/assassin-s-creed-iv-black-flag/coop-ghost-avatar.md) — a second avatar driven over the plugin's own P2P UDP.
-- [AnvilNext internals for AC Rogue co-op: player transform and the set-transform path](../games/assassin-s-creed-rogue/anvilnext-internals-for-ac-rogue-co-op-player-transform-the-.md).
-- [Community modding toolkit and prior art across the Assassin's Creed games](../games/assassin-s-creed/community-modding-toolkit-and-prior-art-across-the-assassin-.md) — finds no public co-op mod exists for any AC game; start from a title that shipped netcode.
-- [A Build 41 Project Zomboid modpack and a modded Linux dedicated server](../games/project-zomboid/b41-modpack-fix-mods-and-linux-dedicated-server.md) — server-side ops, not sync architecture.
-- [Running a self-hosted AzerothCore WotLK server with 1,500 playerbots](../games/world-of-warcraft/azerothcore-playerbots-server-ops.md) and [custom AzerothCore modules](../games/world-of-warcraft/azerothcore-custom-modules.md) — hosted-server side.
+- [Seamless co-op for TUNIC](../games/tunic/seamless-coop-bepinex6-native-hooks.md): 2-8 players over
+  LiteNetLib in a star with the host relaying; puppets with 100 ms snapshot interpolation; shared world flags
+  and inventory; per-enemy ownership by proximity with hit forwarding; owner-arbitrated pickup claims.
+- [Ghost co-op for Dishonored](../games/dishonored/ghost-co-op-ue3-reflection-postrender-hook.md): the DLL's own
+  UDP host/join, 30 Hz snapshots and 100 ms interpolation driving a puppet body.
+- [Working two-player co-op in AC4 Black Flag](../games/assassin-s-creed-iv-black-flag/coop-two-player-udp-bind-in-the-live-game.md)
+  and [spawning a real second player](../games/assassin-s-creed-iv-black-flag/spawning-a-real-second-player-in-ac4-black-flag-the-working-.md):
+  Kamzik123's AC4Coop spawns a puppet for the peer and drives it by action replication over its own UDP.
+- [A visible, driven second character in AC4 single-player](../games/assassin-s-creed-iv-black-flag/coop-ghost-avatar.md):
+  a second avatar driven over the plugin's own P2P UDP.
+- [AnvilNext internals for AC Rogue co-op](../games/assassin-s-creed-rogue/anvilnext-internals-for-ac-rogue-co-op-player-transform-the-.md):
+  the player transform and the set-transform path a replication layer would write to.
 
 External multiplayer mods whose patterns are summarised above:
 
@@ -200,5 +230,3 @@ External multiplayer mods whose patterns are summarised above:
 - Farming Simulator 25 *NPCFavor* — https://github.com/TheCodingDad-TisonK/FS25_NPCFavor
 - King Arthur's Gold *kag-sync* — https://github.com/eps0003/kag-sync
 - Kingdom Come: Deliverance 2 MP *kcd2-exports* — https://github.com/Jefferson25625/kcd2-exports
-
-Full source list and downloaded copies: kept outside the repo (research notes).
