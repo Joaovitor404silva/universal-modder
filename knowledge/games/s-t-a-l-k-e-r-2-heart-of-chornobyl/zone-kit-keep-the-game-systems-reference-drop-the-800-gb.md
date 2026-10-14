@@ -3,7 +3,7 @@ kind: game
 title: 'Zone Kit: keep the game-systems reference, drop the 800 GB'
 game: 'S.T.A.L.K.E.R. 2: Heart of Chornobyl'
 games_also: []
-game_version: Steam 1643320 build 25382007 (project version 2.0.5), Unreal Engine 5.5.4; Zone Kit from the Epic Games Store with the same engine version
+game_version: "Steam 1643320 build 25382007 (public since 2026-09-18, the Patch 2.0.6 release; the note recorded project version 2.0.5), Unreal Engine 5.5.4; Zone Kit from the Epic Games Store with the same engine version"
 platform: windows
 engine: unreal
 route: data
@@ -19,7 +19,13 @@ agents:
 - Claude Code (Fable 5.1)
 humans: []
 date: '2026-10-12'
-links: []
+links:
+- https://zonekit-support.stalker2.com/en-US/kb/article/145/config-patches
+- https://zonekit-support.stalker2.com/en-US/kb/article/172/how-to-patch-contents-of-a-cfg-file
+- https://zonekit-support.stalker2.com/en-US/kb/article/162/mod-game-features
+- https://zonekit-support.stalker2.com/en-US/kb/article/148/creating-mods-with-mini-sdk
+- https://zonekit-support.stalker2.com/en-US/kb/article/164
+- https://cdn.stalker2.com/guides/Quest_Tool_complete_guide.pdf
 tags:
 - unreal
 - zone-kit
@@ -41,18 +47,22 @@ tags:
 
 > The official modding SDK for S.T.A.L.K.E.R. 2 (the "Zone Kit", Epic Games Store, about 817 GB) is
 > overwhelmingly cooked editor content, but the part that explains how the game works is a 352 MB tree of
-> plain-text GameData `.cfg` files plus a handful of cooked Blueprint packages. This note says how to copy
-> just that part out (and reproduce the copy), what the systems look like (A-Life, emissions, saves, quests,
-> artifacts and detectors, NPCs, weapons, weather, mod mounting, console commands), and which behaviour is
-> native code that no file in the kit describes. Everything was read from files; the game-side claims marked
-> "observed" were seen in the running retail game, the rest is read-only study.
+> plain-text GameData `.cfg` files plus a handful of cooked Blueprint packages. This note says how to copy just
+> that part out for your own use (the kit's licence forbids sharing it) and reproduce the copy, what the systems
+> look like (A-Life, emissions, saves, quests, artifacts and detectors, NPCs, weapons, weather, mod mounting,
+> console commands), and which behaviour is native code that no file in the kit describes. Everything was read
+> from files; the game-side claims marked "observed" were seen in the running retail game, the rest is read-only
+> study.
 
 ## Setup
 
-- Game: Steam app 1643320, build 25382007, project version 2.0.5, Unreal Engine 5.5.4. Retail content is
+- Game: Steam app 1643320, build 25382007, Unreal Engine 5.5.4. That build has been the public branch since
+  2026-09-18, the day GSC released Patch 2.0.6; the note recorded "project version 2.0.5". Retail content is
   split into many `pakchunk*-Windows` IoStore containers (`.utoc/.ucas`, plus a small `.pak` each).
-- Kit: Zone Kit from the Epic Games Store, about 817 GB on disk, engine version file says 5.5.4 on the UE5
-  branch. It needs a lot of space; ours sat on a slow HDD, which dominates every operation below.
+- Kit: Zone Kit from the Epic Games Store, about 817 GB on disk as measured (Epic and GSC's guide still say
+  about 700 GB). Its batch files carry the Phase 2 names (Phase 2, with quests and audio, shipped 2026-09-01).
+  The engine version file says 5.5.4 on the UE5 branch. It needs a lot of space; ours sat on a slow HDD, which
+  dominates every operation below.
 - Tools used: `repak` 0.2.3 (list / get / unpack for classic `.pak`), `retoc` (IoStore `.utoc` listing and
   unpacking; only tried to the point of confirming the retail files are IoStore), `robocopy`, Python 3 for the
   manifest and extraction scripts, and a UE4SS object dump of the retail game for class and function names
@@ -96,7 +106,14 @@ sources) was not scanned because of the HDD.
 Also present: the `ModKit` plugin (editor and runtime modules, a `PlainMod` plugin template that can contain
 content), two cook profiles (one for new content, one for override content), and two batch files,
 `CreatePlainMod.bat` and `PakPlainMod.bat`, that wrap the engine's automation tool for config-only mods. No
-sample mod and no documentation ship in the folder; the documentation is a set of web articles.
+sample mod project and no documentation files ship in the folder: the documentation is a set of web articles
+(GSC's Zone Kit knowledge base and guide PDFs, in `links`). GSC's Quest Tool guide does point to template quest
+Blueprints (`GDEQ_Template_*`) inside the editor content.
+
+The kit's EULA (v1, June 2025) licenses one copy for personal use, to make mods for the game. It forbids
+redistributing the kit's content (§2.1) and reverse engineering or decompiling the licensed materials, and it
+asks you to destroy all copies if the licence ends (§12). So the trimmed copy, the pak name lists and any
+extracted packages below are for your own use only: never publish or share them.
 
 ## How to keep only the useful part
 
@@ -140,7 +157,8 @@ Tags: **[kit]** read in a kit file; **[observed]** seen in the retail game; **[i
   with an `@BaseGame/` URL prefix. `{bskipref}` means "do not merge this list with the parent's", `{bpatch}`
   means "add or replace child values instead of replacing the whole node", and `removenode` (only with
   `{bpatch}`) deletes a node. Lists use anonymous `[*]` items. Files carry a UTF-8 BOM. [kit, plus the
-  official config-patch article]
+  official config-patch articles for `{bpatch}` and `removenode`; `{bskipref}` is from the kit files and
+  community tools, not the official articles]
 - A node in a patch replaces the whole base node unless `{bpatch}` is used. Patches live as `*.cfg_patch_*` /
   `.cfg.bin_patch_*` next to a single file, or as any `.cfg` inside a prototype folder; the loader scans
   everything under the GameData path. [kit docs]
@@ -189,11 +207,13 @@ than 200 m away. [observed]
   events (start, danger, active, end), assets (sounds, damage curve, VFX, generator sequences), damage blend
   time, and applied effects (camera shake, night-vision post process). [kit] The damage curve is a cooked
   asset, one of the kept packages.
-- The kit has **no schedule** for the next emission. The only config hooks are quest node types that pause or
-  resume the scheduler and start an emission by prototype id (optionally forced), a neutrality timer and a
-  start location in the global variables, and a difficulty multiplier on the emission weather weight. The
-  scheduler is therefore native: a class `EmissionManager` and enums for stage, state and AI event show up in
-  a reflection dump. [kit + reflection dump]
+- The kit has **no explicit schedule** for the next emission. The config hooks are quest node types that pause
+  or resume the scheduler and start an emission by prototype id (optionally forced), a neutrality timer and a
+  start location in the global variables, a difficulty multiplier on the emission weather weight, and the
+  weather selection weights below. GSC's Quest Tool guide says regular emissions start through the gradual
+  weather blend, and that Force Emission bypasses the weather blend rules. So the cadence's inputs are in
+  GameData, while the roll and the manager are native: a class `EmissionManager` and enums for stage, state
+  and AI event show up in a reflection dump. [kit + reflection dump + Quest Tool guide]
 - Emission is also a weather type, and `CalmBeforeEmission` precedes it. The weather selection tables give
   Emission a blend weight that grows with each weather change and a cooldown counted in weather changes;
   chain nodes route every other weather through `CalmBeforeEmission` into Emission and out again. [kit]
@@ -203,8 +223,9 @@ than 200 m away. [observed]
 - Observed: calling the console emission start makes `IsEmissionActive` true about 36 s later and lethal
   damage begins about 2 minutes after the call; the stop command ends it at once. Switching to weather type 7
   alone also produces a real emission. The configured stage timeline (140 s) and the measured duration
-  (about 165 s) disagree and the difference is unexplained. In the prologue save, no emission could be
-  started by any of these (the story blocks it). [observed]
+  (about 165 s) disagree and the difference is unexplained (the weather blend in and out is a candidate). In
+  the prologue save, no emission could be started by any of these. [observed] [inference: the story blocks
+  it; quests can pause the emission scheduler.]
 
 ### Weather and time
 - `WeatherSelectionPrototypes` lists the ten weather types with blend weights, weight increase per change,
@@ -216,6 +237,8 @@ than 200 m away. [observed]
   than the value passed to the switch command (off-by-one in the readback, not in the command).
 - Two clocks, observed: a game clock (quests, A-Life) and a weather/sun clock. They run at the same rate
   (real-to-game coefficient in the global variables) but have separate setters and do not move each other.
+  GSC's Quest Tool guide adds that game time passes more slowly during the day than at night, so that
+  coefficient isn't the whole story.
   The weather switch command does the game's own transition; a separate force command is instant.
 - The controller is the Blueprint `WeatherController_BP` over a native `WeatherController`. [kit]
 
@@ -256,8 +279,8 @@ than 200 m away. [observed]
   entry nodes skips the film. Only `SetJournal` changes the journal and only `SetGlobalVariable` or a
   `Condition` of the right kind reads or writes variables. [kit]
 - Observed: the console exposes start/end/skip/exclude/reset by quest id and node id; there is a setter for
-  bool globals only (no int setter); the active/finished quest lists from the mediator return arrays with no
-  readable fields (counts only). [observed]
+  bool globals only (no int setter found); the active/finished quest lists from the mediator return arrays
+  with no readable fields (counts only). [observed]
 
 ### Artifacts, anomalies, detectors
 - **Anomalies** are level placeholders (many thousands in the world across gravity/electro/soap-bubble/
@@ -311,8 +334,11 @@ than 200 m away. [observed]
   enum with console activate/deactivate commands. [kit + reflection dump]
 - Observed: the console spawn command with a prototype id (including a custom one added by a patch that
   inherits from the base templates) produces a real human NPC character at the requested point; spawns far
-  outside the player's bubble silently produce nothing. A spawned NPC has no AI controller and zero walk
-  speed, so it can only be moved externally. [observed]
+  outside the player's bubble silently produce nothing. In these spawns the NPC had no AI controller and zero
+  walk speed, so it could only be moved externally. [observed] That doesn't square with the A-Life
+  observation above (spawned NPCs stand still unless the AI console tools are called), so the result may
+  depend on the spawn path. GSC's Quest Tool guide says resetting an NPC's goals hands it back to A-Life.
+  Not resolved.
 
 ### Weapons and damage
 - Player guns have `_Player` suffixed entries in the player weapon settings file, NPC guns a parallel file,
@@ -334,8 +360,8 @@ consumables, detectors, key items, grenades, money, mutant loot, night vision, q
 (about 1,000 ids), item containers (about 45), corpses, trade tables (about 660), item generators with a
 "smart loot" system per rank, and backpacks are separate tables. Trade tables hold open hours, money, refresh
 condition, buy/sell modifiers and per-rank discounts. The container Blueprint's native parent is
-`InteractableItemContainer`. No function returns a container's item list; removal from a container is
-only through the `ItemRemove` quest node. [kit + reflection dump]
+`InteractableItemContainer`. No function that returns a container's item list turned up in the reflection
+dump; the only removal path found is the `ItemRemove` quest node. [kit + reflection dump]
 
 ### Difficulty
 `DifficultyPrototypes` has nodes for the base, Easy, Medium, Hard, Stalker (Master), Custom, console variants
@@ -370,14 +396,16 @@ lines. The console surface is also reachable from a UE4SS Lua mod and from Bluep
   `../../../Stalker2/Content/GameLite/GameData/` for overrides of stock cfg files and quest nodes. A file in
   an override pak replaces the stock file of the same path. [kit + observed]
 - **`ModGameData` override mechanism.** New prototypes inherit from base nodes and add their own; patches use
-  `{bpatch}`; a quest-node patch to `rootgraph` is the standard way to start a mod's own logic in every save.
+  `{bpatch}`. To start a mod's own logic in every save, GSC recommends a `ModWorldSubsystem` Blueprint that
+  calls `XStartQuestBySID` (Zone Kit KB 164); patching an `OnTickEvent` node into `rootgraph` is the
+  community's config-only alternative.
   [kit]
 - A plain config-only override can also be shipped as a small classic `.pak` in the game's `~mods` folder with
   a late-sorting name and the `_P` patch suffix; this loaded fine in the retail game. The official config mods
   use pak version V11 with the same mount point; repak's V3 also loaded. [observed]
 - Blueprint mods start from `ModWorldSubsystem` (events initialise, world begin play, level actors pre-init,
   tick, save-data request/set/loaded), with extra subsystems and data assets for actor deletion, patching and
-  replacement and a localisation database. Nothing in its API gives file or socket I/O. [reflection dump]
+  replacement and a localisation database. No file or socket I/O turned up in its API. [reflection dump]
 
 ## Build steps
 
@@ -433,10 +461,12 @@ The reference copy itself is rebuilt, not hand-made, so a game update can be re-
    an animation layer. **Cause:** `PassiveDetectorComponent` and relatives are C++ with no script-callable
    target list. **Fix:** treat it as a black box and measure it; remember it reacts to existing artifact
    actors, so a hidden or "emptied" place keeps clicking until the actor is moved well away sideways.
-5. **The emission schedule is native.** Symptom: no config says when the next emission comes.
-   **Cause:** only start and pause/resume quest nodes and a few global variables exist; the manager is
-   `EmissionManager`. **Fix:** control emissions through the console or quest nodes and read their timing
-   live; do not expect to read or edit the schedule from GameData.
+5. **The emission roll is native.** Symptom: no config says when the next emission comes.
+   **Cause:** regular emissions come through the weather blend (Emission's weather weight and cooldown),
+   and the roll itself is in `EmissionManager`; besides those, only start and pause/resume quest nodes and a
+   few global variables exist. **Fix:** tune the weather-selection weights and cooldowns for the cadence,
+   control single emissions through the console or quest nodes (Force Emission bypasses the weather blend),
+   and read their timing live.
 6. **The artifact roll is native and per local player.** Symptom: spawners behave differently from the data.
    **Cause:** the activation component sits on the player pawn and the roll is native. **Fix:** tune
    spawner prototypes and the global pity tables, but verify with the game, not with the numbers.
@@ -456,16 +486,16 @@ The reference copy itself is rebuilt, not hand-made, so a game update can be re-
     name in a fresh object dump, and keep a probe that calls each one.
 11. **No C++ headers and no documentation in the kit.** Symptom: class APIs are invisible. **Cause:** the
     Source folder holds only a target file and the docs are web articles. **Fix:** dump the retail game's
-    reflection data (UE4SS object dump) and copy the web articles when you copy the kit.
+    reflection data (UE4SS object dump), and keep your own copy of the web articles (for your use only).
 12. **Empty faction file.** Symptom: you look for factions in `FactionPrototypes.cfg`. **Cause:** it is empty;
     factions are plain strings. **Fix:** grep the other tables for the string.
 13. **The kit is hostile to slow disks.** Symptom: commands that look harmless take hours. **Cause:** 817 GB,
     151k small GameData files, and 83,000 tiny placeholder files. **Fix:** never walk the whole kit; list
     only what you need, copy GameData with multi-threaded robocopy, and run one `repak list` per pak.
 14. **The editor is not a research tool on a small machine.** Symptom: expecting to open the project to read a
-    graph. **Cause:** it mounts hundreds of GB from the HDD and wants far more memory than 32 GB with a small
-    page file (estimate from the sizes, not tried). **Fix:** use the text files, the pak name lists and
-    selected packages, and only use the editor to author Blueprint mods.
+    graph. **Cause:** it mounts hundreds of GB from the HDD (estimate from the sizes, not tried), and GSC's
+    guide asks for 32 GB of RAM plus a page file of 64 GB at least, 128 GB recommended. **Fix:** use the text
+    files, the pak name lists and selected packages, and only use the editor to author Blueprint mods.
 15. **Bubble-limited spawns fail silently.** Symptom: a spawn call at a far point returns without error and
     nothing appears. **Cause:** spawns are valid only inside the player's A-Life bubble. **Fix:** spawn near
     the player and then move the result.
