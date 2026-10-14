@@ -4701,7 +4701,7 @@
   "title": "Zone Kit: keep the game-systems reference, drop the 800 GB",
   "game": "S.T.A.L.K.E.R. 2: Heart of Chornobyl",
   "games_also": [],
-  "game_version": "Steam 1643320 build 25382007 (project version 2.0.5), Unreal Engine 5.5.4; Zone Kit from the Epic Games Store with the same engine version",
+  "game_version": "Steam 1643320 build 25382007 (public since 2026-09-18, the Patch 2.0.6 release; the note recorded project version 2.0.5), Unreal Engine 5.5.4; Zone Kit from the Epic Games Store with the same engine version",
   "platform": "windows",
   "engine": "unreal",
   "route": "data",
@@ -4719,7 +4719,14 @@
   ],
   "humans": [],
   "date": "2026-10-12",
-  "links": [],
+  "links": [
+   "https://zonekit-support.stalker2.com/en-US/kb/article/145/config-patches",
+   "https://zonekit-support.stalker2.com/en-US/kb/article/172/how-to-patch-contents-of-a-cfg-file",
+   "https://zonekit-support.stalker2.com/en-US/kb/article/162/mod-game-features",
+   "https://zonekit-support.stalker2.com/en-US/kb/article/148/creating-mods-with-mini-sdk",
+   "https://zonekit-support.stalker2.com/en-US/kb/article/164",
+   "https://cdn.stalker2.com/guides/Quest_Tool_complete_guide.pdf"
+  ],
   "tags": [
    "unreal",
    "zone-kit",
