@@ -147,7 +147,9 @@ A few notes from the community:
 that take days. Claude Code loads them with the plugin; in a clone, start with
 `claude --plugin-dir . --agent mod-orchestrator`. Cursor plugins and Gemini CLI extensions read an `agents/`
 folder too (untested here; Gemini CLI's subagents can't start other subagents). Three agents use several
-times the tokens of one, so keep it for long mods. Any agent can read the files as role briefs.
+times the tokens of one, so keep it for long mods. What worked for one user: the orchestrator on Fable 5.1 at
+medium effort, the game worker on Sonnet 5.5 at medium, and the offline worker on Opus 5.5 at high. Any agent can
+read the files as role briefs.
 
 <table>
   <thead><tr><th width="200">Agent</th><th>What it does</th></tr></thead>
