@@ -20,7 +20,7 @@
   <img src="docs/media/mods-teaser.gif" alt="Six mods made by AI coding agents, with the universal-modder tile in the corner: Steve gliding an elytra through Los Santos, the Nether spreading over Los Santos, Minecraft mobs fighting the LSPD, the Halo Warthog in Minecraft, a World at War flamethrower in Minecraft, and World at War zombies in Minecraft. It ends on the universal-modder logo and &quot;mod any game.&quot;" width="560">
 </p>
 
-<p align="center"><b>Coming next: the mod hub.</b> Publish your mods, remix other people's, and make new ones.<br>
+<p align="center"><b>Coming next: the mod hub at <a href="https://universalmodder.com">universalmodder.com</a>.</b> Publish your mods, remix other people's, and make new ones.<br>
   Share what you make, get help, and follow along:</p>
 <p align="center">
   <a href="https://discord.com/invite/sEZWaf7vV"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/media/discord-dark.svg"><img src="docs/media/discord-light.svg" height="32" alt="join the discord"></picture></a>
@@ -51,7 +51,9 @@ Without a clone, OpenCode 2 installs the plugin in `plugins/opencode/` with `ope
 fal MCP server when `FAL_KEY` is set and none is configured. A clone doesn't need it. See
 `plugins/opencode/README.md`.
 
-**The `um` CLI.** Plugin installs and clones put it on PATH (OpenCode's plugin install doesn't). Anywhere else:
+**The `um` CLI.** The Claude Code plugin puts it on PATH (its SessionStart hook), and so does a clone opened in
+Claude Code (`.claude/settings.json`); in a clone with another agent, `export PATH="$PWD/bin:$PATH"`. Other
+agents' plugin installs (Codex, Cursor, Gemini CLI, OpenCode) don't, so install it once:
 ```bash
 uv tool install git+https://github.com/rehan-remade/universal-modder     # or: pipx install git+...
 ```
